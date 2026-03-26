@@ -1,0 +1,88 @@
+name: cgt_dev
+services:
+  # cgt_dev_db-service:
+  #   container_name: cgt_dev_db-container
+  #   restart: always
+  #   image: postgres:latest
+  #   environment:
+  #     POSTGRES_USER: dbuser
+  #     POSTGRES_PASSWORD: dbpass
+  #     POSTGRES_DB: dbname
+  #   volumes:
+  #     - db-data:/var/lib/postgresql
+  #   healthcheck:
+  #     test:
+  #       [
+  #         "CMD-SHELL",
+  #         "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB} -h localhost",
+  #       ]
+  #     interval: 3s
+  #     timeout: 3s
+  #     retries: 3
+  #   command: ["postgres", "-c", "log_checkpoints=off"]
+  #   networks:
+  #     - backend-network
+
+  # cgt_dev_api-service:
+  #   container_name: cgt_dev_api-container
+  #   image: cgt_dev_api-image
+  #   restart: always
+  #   build:
+  #     context: ./api
+  #     dockerfile: Dockerfile
+  #     target: dev
+  #   environment:
+  #     # Refer to DB service authentication details
+  #     - DB_URL=dbuser:dbpass@cgt_dev_db-service:5432/dbname
+  #   volumes:
+  #     - ./api/app:/code/app
+  #     - venv:/code/.venv
+  #     - pip:/root/.cache/pip
+  #   networks:
+  #     - backend-network
+
+  cgt_dev_web-service:
+    container_name: cgt_dev_web-container
+    restart: always
+    image: cgt_dev_web-image
+    build:
+      context: ./web
+      target: dev
+      args:
+        - PORT=5173
+    environment:
+      # - BETTER_AUTH_SECRET=REDACTED
+      # - BETTER_AUTH_URL=http://192.168.8.103:8081
+      # - API_URL=http://cgt_dev_api-service:8000
+      - PUBLIC_APP_TITLE=CGTify
+    volumes:
+      - ./web:/app
+    networks:
+      - web-network
+      - gateway-network
+      # - backend-network
+
+  cgt_dev_gateway-service:
+    container_name: cgt_dev_gateway-container
+    image: nginx:latest
+    restart: always
+    ports:
+      - 8081:8081
+    environment:
+      - HOST=192.168.8.103
+      - PORT=8081
+      - WEB_SERVICE=cgt_dev_web-service:5173
+    volumes:
+      - ./gateway/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+    networks:
+      - gateway-network
+
+# volumes:
+#   db-data:
+#   venv:
+#   pip:
+
+networks:
+  gateway-network:
+  web-network:
+  # backend-network:

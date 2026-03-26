@@ -1,0 +1,88 @@
+name: cgt_prod
+services:
+  # cgt_prod_api-db-service:
+  #   container_name: cgt_prod_api-db-container
+  #   restart: always
+  #   image: postgres:latest
+  #   environment:
+  #     POSTGRES_USER: apidbuser
+  #     POSTGRES_PASSWORD: password
+  #     POSTGRES_DB: apidb
+  #   volumes:
+  #     - api-db-data:/var/lib/postgresql
+  #   healthcheck:
+  #     test:
+  #       [
+  #         "CMD-SHELL",
+  #         "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB} -h localhost",
+  #       ]
+  #     interval: 3s
+  #     timeout: 3s
+  #     retries: 3
+  #   command: ["postgres", "-c", "log_checkpoints=off"]
+  #   networks:
+  #     - api-network
+
+  # cgt_prod_api-service:
+  #   container_name: cgt_prod_api-container
+  #   image: cgt_prod_api-image
+  #   restart: always
+  #   build:
+  #     context: ./api
+  #     dockerfile: Dockerfile
+  #     target: prod
+  #   environment:
+  #     - DB_HOST=cgt_prod_api-db-service
+  #     - CACHE_HOST=cgt_prod_api-cache-service
+  #   env_file:
+  #     - ./api/.env
+  #   volumes:
+  #     - ./api/app:/code/app
+  #     - venv:/code/.venv
+  #     - pip:/root/.cache/pip
+  #   networks:
+  #     - api-network
+  #     - web-network
+
+  cgt_prod_web-service:
+    container_name: cgt_prod_web-container
+    image: cgt_prod_web-image
+    build:
+      context: ./web
+      target: prod
+      args:
+        - HOST=cgt.kibon.dev
+        - PORT=3000
+    networks:
+      # - web-network
+      - gateway-network
+
+  cgt_prod_gateway-service:
+    container_name: cgt_prod_gateway-container
+    image: nginx:latest
+    ports:
+      - 83:83
+    environment:
+      - HOST=cgt.kibon.dev
+      - PORT=83
+      - WEB_SERVICE=cgt_prod_web-service:3000
+    volumes:
+      - ./gateway/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+    networks:
+      - gateway-network
+      - tunnel-network
+    depends_on:
+      - cgt_prod_web-service
+
+# volumes:
+#   api-db-data:
+#   venv:
+#   pip:
+
+networks:
+  # api-network:
+  # web-network:
+  gateway-network:
+  tunnel-network:
+    name: prod_tunnel_network
+    external: true
