@@ -1,5 +1,4 @@
 <script lang="ts">
-	import cgtJson from '$lib/assets/cgt.json'
 	import Button from '$lib/components/button.svelte'
 	import { runCGT } from '$lib/helpers/cgt'
 	import { exportToXlsx } from '$lib/helpers/export'
@@ -9,10 +8,13 @@
 		normaliseStakeIncome,
 		sortTradesByDate
 	} from '$lib/helpers/normalise'
+	import { clearResult, persistResult, restoreResult } from '$lib/helpers/persist-trades'
+	import type { CGTMethod, Trade } from '$lib/types'
 	import CgtTable from '$routes/(app)/components/cgt-table.svelte'
 	import DivTable from '$routes/(app)/components/div-table.svelte'
 	import FileDrop from '$routes/(app)/components/file-drop.svelte'
 	import PortfolioTable from '$routes/(app)/components/portfolio-table.svelte'
+	import { onMount } from 'svelte'
 	import toast from 'svelte-french-toast'
 
 	let betaFile: File | null = null
@@ -20,38 +22,22 @@
 	let stakeIncomeFile: File | null = null
 
 	let loading = false
-	let error: string | null = null
-
-	function hydrateDates<T extends { trade_date: string }>(
-		rows: T[]
-	): (Omit<T, 'trade_date'> & { trade_date: Date })[] {
-		return rows.map((r) => ({ ...r, trade_date: new Date(r.trade_date) }))
-	}
-	let result: ReturnType<typeof runCGT> | null = {
-		...cgtJson,
-		fifo_cgt: hydrateDates(cgtJson.fifo_cgt),
-		lifo_cgt: hydrateDates(cgtJson.lifo_cgt),
-		hifo_cgt: hydrateDates(cgtJson.hifo_cgt),
-		cgt: hydrateDates(cgtJson.cgt),
-		dividends: hydrateDates(cgtJson.dividends),
-		fifo_portfolio: cgtJson.fifo_portfolio,
-		lifo_portfolio: cgtJson.lifo_portfolio,
-		hifo_portfolio: cgtJson.hifo_portfolio,
-		portfolio: cgtJson.hifo_portfolio,
-		summary: cgtJson.summary
-	}
-
-	// result = null
-
-	type CGTMethod = 'fifo' | 'lifo' | 'hifo'
+	let result: ReturnType<typeof runCGT> | null = null
 	let activeMethod: CGTMethod = 'hifo'
+
+	onMount(() => {
+		const persisted = restoreResult()
+		if (persisted) {
+			result = persisted
+			toast('Result restored')
+		}
+	})
 
 	async function processTrades() {
 		if (!betaFile && !stakeActivityFile && !stakeIncomeFile) return
 		loading = true
-		error = null
 		try {
-			const trades = []
+			const trades: Trade[] = []
 
 			if (betaFile) trades.push(...(await normaliseBetashares(betaFile)))
 
@@ -59,19 +45,8 @@
 
 			if (stakeIncomeFile) trades.push(...(await normaliseStakeIncome(stakeIncomeFile)))
 
-			result = runCGT(sortTradesByDate(trades))
-
-			// const json = JSON.stringify(result, null, 2) // pretty format
-
-			// const blob = new Blob([json], { type: 'application/json' })
-			// const url = URL.createObjectURL(blob)
-
-			// const a = document.createElement('a')
-			// a.href = url
-			// a.download = 'data.json'
-			// a.click()
-
-			// URL.revokeObjectURL(url)
+			result = runCGT(sortTradesByDate(trades), [])
+			persistResult(result)
 		} catch (e) {
 			toast.error(String(e))
 		} finally {
@@ -79,25 +54,17 @@
 		}
 	}
 
-	function download() {
+	function downloadResults() {
 		if (!result) return
-		exportToXlsx(
-			result.fifo_cgt,
-			result.lifo_cgt,
-			result.hifo_cgt,
-			result.fifo_portfolio,
-			result.lifo_portfolio,
-			result.hifo_portfolio,
-			result.dividends
-		)
+		exportToXlsx(result.cgt, result.portfolio, result.dividends)
 	}
 
 	$: dragging = false
 
-	$: CGT = result ? result[`${activeMethod}_cgt`] : []
-	$: portfolio = result ? result[`${activeMethod}_portfolio`] : []
-	$: summary = result ? result.summary[activeMethod] : null
+	$: cgt = result ? result.cgt[activeMethod] : []
+	$: portfolio = result ? result.portfolio[activeMethod] : []
 	$: dividends = result ? result.dividends : []
+	$: summary = result ? result.summary[activeMethod] : null
 </script>
 
 <div class="flex w-screen flex-col items-center gap-8 px-4">
@@ -139,11 +106,41 @@
 		</div>
 	</section>
 
-	<section class="flex w-full justify-end">
+	<section class="flex w-full justify-between gap-2">
+		<span>
+			<!-- <Button
+				onclick={() => {
+					if (result) {
+						persistResult(result)
+						toast('Saved results')
+					}
+				}}
+				disabled={!result?.cgt['hifo'].length &&
+					!result?.cgt['lifo'].length &&
+					!result?.cgt['fifo'].length}
+				class="w-24"
+			>
+				Save
+			</Button> -->
+			<Button
+				onclick={() => {
+					clearResult()
+					result = null
+					toast('Results cleared')
+				}}
+				disabled={!result?.cgt['hifo'].length &&
+					!result?.cgt['lifo'].length &&
+					!result?.cgt['fifo'].length}
+				class="w-24"
+			>
+				Clear
+			</Button>
+		</span>
+
 		<Button
 			onclick={processTrades}
 			disabled={(!betaFile && !stakeActivityFile && !stakeIncomeFile) || loading}
-			class="px-10"
+			class="w-24"
 		>
 			{loading ? 'Processing...' : 'Process'}
 		</Button>
@@ -186,15 +183,15 @@
 					</button>
 				{/each}
 			</div>
-			<button on:click={download} class="underline">Download XLSX</button>
+			<button on:click={downloadResults} class="underline">Download XLSX</button>
 		</section>
 
 		<section class="w-full space-y-4">
-			<CgtTable cgt={CGT} {activeMethod} />
+			<CgtTable {cgt} {activeMethod} />
 
 			<DivTable {dividends} />
 
-			<PortfolioTable activePortfolio={portfolio} />
+			<PortfolioTable {portfolio} />
 		</section>
 	{/if}
 </div>
