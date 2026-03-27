@@ -13,8 +13,10 @@
 	<link rel="icon" href={favicon} />
 </svelte:head>
 
-<div class="flex flex-col items-center justify-between gap-2 px-8">
-	<Header />
+<div class="flex flex-col items-center justify-between gap-2">
+	<div class="h-16 w-full">
+		<Header />
+	</div>
 
 	<main class="flex flex-1 flex-col p-4">{@render children?.()}</main>
 

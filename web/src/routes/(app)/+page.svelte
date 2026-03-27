@@ -67,7 +67,11 @@
 	$: summary = result ? result.summary[activeMethod] : null
 </script>
 
-<div class="flex w-screen flex-col items-center gap-8 px-4">
+<div class="flex w-screen flex-col items-center gap-8 px-4 sm:max-w-3xl">
+	<div class="flex w-full justify-center text-xs text-primary/60">
+		<p>Drag and drop files here, or click to upload</p>
+	</div>
+
 	<section class="grid grid-cols-1 gap-2 sm:grid-cols-3">
 		<div class="w-[200px]">
 			<FileDrop
@@ -106,7 +110,7 @@
 		</div>
 	</section>
 
-	<section class="flex w-full justify-between gap-2">
+	<section class="flex w-full justify-end gap-2">
 		<span>
 			<!-- <Button
 				onclick={() => {
@@ -183,7 +187,7 @@
 					</button>
 				{/each}
 			</div>
-			<button on:click={downloadResults} class="underline">Download XLSX</button>
+			<button on:click={downloadResults} class="underline">Download Excel</button>
 		</section>
 
 		<section class="w-full space-y-4">

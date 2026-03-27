@@ -40,8 +40,10 @@
 	{#if file}
 		<button
 			class="pointer-events-auto absolute top-0 right-0 mx-2 cursor-pointer text-lg"
-			on:click={handleRemove}>&times;</button
+			on:click={handleRemove}
 		>
+			&times;
+		</button>
 	{/if}
 	<p class="max-w-full">{file ? file.name : label}</p>
 	<input type="file" {accept} hidden on:change={onChange} />
