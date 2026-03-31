@@ -4,7 +4,7 @@
 
 	export let cgt: CGTRow[], activeMethod
 
-	const { icons, page, paged, sort, totalPages, setData } = createTable<CGTRow>(cgt, 'trade_date')
+	const { icons, page, paged, sortBy, totalPages, setData } = createTable<CGTRow>(cgt, 'trade_date')
 
 	$: setData(cgt)
 	$: (activeMethod, page.set(0))
@@ -16,14 +16,14 @@
 		<table class="w-full text-left">
 			<thead class="tracking-wider uppercase">
 				<tr>
-					<th on:click={() => sort('trade_date')}>
+					<th on:click={() => sortBy('trade_date')}>
 						Date {$icons.trade_date}
 					</th>
-					<th on:click={() => sort('symbol')}>Symbol {$icons.symbol}</th>
-					<th on:click={() => sort('quantity_sold')}>Qty Sold {$icons.quantity_sold}</th>
-					<th on:click={() => sort('proceeds')}>Proceeds {$icons.proceeds}</th>
-					<th on:click={() => sort('cost_base')}>Cost Base {$icons.cost_base}</th>
-					<th on:click={() => sort('realised_pnl')}>P&L {$icons.realised_pnl}</th>
+					<th on:click={() => sortBy('symbol')}>Symbol {$icons.symbol}</th>
+					<th on:click={() => sortBy('quantity_sold')}>Qty Sold {$icons.quantity_sold}</th>
+					<th on:click={() => sortBy('proceeds')}>Proceeds {$icons.proceeds}</th>
+					<th on:click={() => sortBy('cost_base')}>Cost Base {$icons.cost_base}</th>
+					<th on:click={() => sortBy('realised_pnl')}>P&L {$icons.realised_pnl}</th>
 				</tr>
 			</thead>
 			<tbody>

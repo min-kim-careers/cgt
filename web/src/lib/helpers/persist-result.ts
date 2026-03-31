@@ -2,7 +2,7 @@ import type { CGTResult } from '$lib/types'
 
 const key = 'result'
 
-export function clearResult() {
+export function resetResult() {
 	localStorage.removeItem(key)
 }
 

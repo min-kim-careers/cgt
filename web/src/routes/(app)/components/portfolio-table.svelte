@@ -4,7 +4,7 @@
 
 	export let portfolio
 
-	const { icons, page, paged, sort, totalPages, setData } = createTable<PortfolioRow>(
+	const { icons, page, paged, sortBy, totalPages, setData } = createTable<PortfolioRow>(
 		portfolio,
 		'symbol'
 	)
@@ -17,10 +17,10 @@
 	<table class="w-full text-left">
 		<thead class="tracking-wider uppercase">
 			<tr>
-				<th on:click={() => sort('symbol')}>Symbol {$icons.symbol}</th>
-				<th on:click={() => sort('quantity')}>Quantity {$icons.quantity}</th>
-				<th on:click={() => sort('avg_cost')}>Avg Cost {$icons.avg_cost}</th>
-				<th on:click={() => sort('cost_base')}>Cost Base {$icons.cost_base}</th>
+				<th on:click={() => sortBy('symbol')}>Symbol {$icons.symbol}</th>
+				<th on:click={() => sortBy('quantity')}>Quantity {$icons.quantity}</th>
+				<th on:click={() => sortBy('avg_cost')}>Avg Cost {$icons.avg_cost}</th>
+				<th on:click={() => sortBy('cost_base')}>Cost Base {$icons.cost_base}</th>
 			</tr>
 		</thead>
 		<tbody>

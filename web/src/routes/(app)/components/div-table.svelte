@@ -4,7 +4,7 @@
 
 	export let dividends
 
-	const { icons, page, paged, sort, totalPages, setData } = createTable<DividendRow>(
+	const { icons, page, paged, sortBy, totalPages, setData } = createTable<DividendRow>(
 		dividends,
 		'trade_date'
 	)
@@ -17,10 +17,10 @@
 	<table class="w-full text-left">
 		<thead class="tracking-wider uppercase">
 			<tr>
-				<th on:click={() => sort('trade_date')}>Date {$icons.trade_date}</th>
-				<th on:click={() => sort('symbol')}>Symbol {$icons.symbol}</th>
-				<th on:click={() => sort('amount')}>Amount {$icons.amount}</th>
-				<th on:click={() => sort('source')}>Source {$icons.source}</th>
+				<th on:click={() => sortBy('trade_date')}>Date {$icons.trade_date}</th>
+				<th on:click={() => sortBy('symbol')}>Symbol {$icons.symbol}</th>
+				<th on:click={() => sortBy('amount')}>Amount {$icons.amount}</th>
+				<th on:click={() => sortBy('source')}>Source {$icons.source}</th>
 			</tr>
 		</thead>
 		<tbody>

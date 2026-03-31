@@ -8,18 +8,18 @@
 		normaliseStakeIncome,
 		sortTradesByDate
 	} from '$lib/helpers/normalise'
-	import { clearResult, persistResult, restoreResult } from '$lib/helpers/persist-trades'
+	import { persistResult, resetResult, restoreResult } from '$lib/helpers/persist-result'
 	import type { CGTMethod, Trade } from '$lib/types'
 	import CgtTable from '$routes/(app)/components/cgt-table.svelte'
 	import DivTable from '$routes/(app)/components/div-table.svelte'
-	import FileDrop from '$routes/(app)/components/file-drop.svelte'
+	import FileInput from '$routes/(app)/components/file-input.svelte'
 	import PortfolioTable from '$routes/(app)/components/portfolio-table.svelte'
 	import { onMount } from 'svelte'
 	import toast from 'svelte-french-toast'
 
-	let betaFile: File | null = null
-	let stakeActivityFile: File | null = null
-	let stakeIncomeFile: File | null = null
+	let betaFiles: File[] = []
+	let stakeActivityFiles: File[] = []
+	let stakeIncomeFiles: File[] = []
 
 	let loading = false
 	let result: ReturnType<typeof runCGT> | null = null
@@ -34,18 +34,30 @@
 	})
 
 	async function processTrades() {
-		if (!betaFile && !stakeActivityFile && !stakeIncomeFile) return
+		if (!betaFiles && !stakeActivityFiles && !stakeIncomeFiles) return
 		loading = true
 		try {
 			const trades: Trade[] = []
 
-			if (betaFile) trades.push(...(await normaliseBetashares(betaFile)))
+			if (betaFiles) {
+				const results = await Promise.all(betaFiles.map((f) => normaliseBetashares(f)))
+				results.forEach((r) => trades.push(...r))
+			}
 
-			if (stakeActivityFile) trades.push(...(await normaliseStakeActivity(stakeActivityFile)))
+			if (stakeActivityFiles) {
+				const results = await Promise.all(stakeActivityFiles.map((f) => normaliseStakeActivity(f)))
+				results.forEach((r) => trades.push(...r))
+			}
 
-			if (stakeIncomeFile) trades.push(...(await normaliseStakeIncome(stakeIncomeFile)))
+			if (stakeIncomeFiles) {
+				const results = await Promise.all(stakeIncomeFiles.map((f) => normaliseStakeIncome(f)))
+				results.forEach((r) => trades.push(...r))
+			}
+
+			if (!trades.length) throw new Error('No trades processed')
 
 			result = runCGT(sortTradesByDate(trades), [])
+
 			persistResult(result)
 		} catch (e) {
 			toast.error(String(e))
@@ -69,81 +81,63 @@
 
 <div class="flex w-screen flex-col items-center gap-8 px-4 sm:max-w-3xl">
 	<div class="flex w-full justify-center text-xs text-primary/60">
-		<p>Drag and drop files here, or click to upload</p>
+		<p>Drag and drop multiple files here, or click to upload</p>
 	</div>
 
 	<section class="grid grid-cols-1 gap-2 sm:grid-cols-3">
-		<div class="w-[200px]">
-			<FileDrop
+		<div class="h-[120px] w-[200px]">
+			<FileInput
 				label="Betashares CSV"
-				file={betaFile}
+				files={betaFiles}
+				{dragging}
 				accept=".csv"
-				onChange={(e) => (betaFile = e.currentTarget.files?.[0] ?? null)}
-				onDrop={(e) => (betaFile = e.dataTransfer?.files[0] ?? null)}
-				{dragging}
-				handleRemove={() => (betaFile = null)}
+				onChange={(f) => (betaFiles = f)}
+				onDrop={(f) => (betaFiles = f)}
+				handleClear={() => (betaFiles = [])}
 			/>
 		</div>
 
-		<div class="w-[200px]">
-			<FileDrop
+		<div class="h-[120px] w-[200px]">
+			<FileInput
 				label="Stake Activity"
-				file={stakeActivityFile}
-				accept=".xlsx"
-				onChange={(e) => (stakeActivityFile = e.currentTarget.files?.[0] ?? null)}
-				onDrop={(e) => (stakeActivityFile = e.dataTransfer?.files[0] ?? null)}
+				files={stakeActivityFiles}
 				{dragging}
-				handleRemove={() => (stakeActivityFile = null)}
+				accept=".xlsx"
+				onChange={(f) => (stakeActivityFiles = f)}
+				onDrop={(f) => (stakeActivityFiles = f)}
+				handleClear={() => (stakeActivityFiles = [])}
 			/>
 		</div>
 
-		<div class="w-[200px]">
-			<FileDrop
+		<div class="h-[120px] w-[200px]">
+			<FileInput
 				label="Stake Income"
-				file={stakeIncomeFile}
-				accept=".xlsx"
-				onChange={(e) => (stakeIncomeFile = e.currentTarget.files?.[0] ?? null)}
-				onDrop={(e) => (stakeIncomeFile = e.dataTransfer?.files[0] ?? null)}
+				files={stakeIncomeFiles}
 				{dragging}
-				handleRemove={() => (stakeIncomeFile = null)}
+				accept=".xlsx"
+				onChange={(f) => (stakeIncomeFiles = f)}
+				onDrop={(f) => (stakeIncomeFiles = f)}
+				handleClear={() => (stakeIncomeFiles = [])}
 			/>
 		</div>
 	</section>
 
 	<section class="flex w-full justify-end gap-2">
-		<span>
-			<!-- <Button
-				onclick={() => {
-					if (result) {
-						persistResult(result)
-						toast('Saved results')
-					}
-				}}
-				disabled={!result?.cgt['hifo'].length &&
-					!result?.cgt['lifo'].length &&
-					!result?.cgt['fifo'].length}
-				class="w-24"
-			>
-				Save
-			</Button> -->
-			<Button
-				onclick={() => {
-					clearResult()
-					result = null
-					toast('Results cleared')
-				}}
-				disabled={!result?.cgt['hifo'].length &&
-					!result?.cgt['lifo'].length &&
-					!result?.cgt['fifo'].length}
-				class="w-24"
-			>
-				Clear
-			</Button>
-		</span>
+		<Button
+			onclick={() => {
+				resetResult()
+				result = null
+				toast('Results cleared')
+			}}
+			disabled={!result}
+			class="w-24"
+		>
+			Clear
+		</Button>
 
 		<Button
 			onclick={processTrades}
-			disabled={(!betaFile && !stakeActivityFile && !stakeIncomeFile) || loading}
+			disabled={(!betaFiles && !stakeActivityFiles && !stakeIncomeFiles) || loading}
 			class="w-24"
 		>
 			{loading ? 'Processing...' : 'Process'}
