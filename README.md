@@ -23,9 +23,15 @@ Working out capital gains from broker exports by hand is error-prone. Sells have
 SvelteKit (Svelte 5) · TypeScript · Tailwind · shadcn · Docker · nginx · Cloudflare Tunnel
 
 ## Run locally
-No keys needed.
+Requires Docker. No keys needed.
 ```bash
-cd web && pnpm install && pnpm dev
+docker compose -f compose.dev.yml up --build
+```
+Open http://localhost:8081. The sample exports in `samples/` can be uploaded to try it.
+
+Type check:
+```bash
+docker compose -f compose.dev.yml exec cgt_dev_web-service pnpm check
 ```
 
 ## What I'd improve next
