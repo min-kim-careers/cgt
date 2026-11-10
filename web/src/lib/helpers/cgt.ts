@@ -1,67 +1,81 @@
-import type { CGTResult, CGTRow, DividendRow, Lot, PortfolioRow, Split, Trade } from '$lib/types'
+import type { CGTMethod, CGTResult, CGTRow, DividendRow, Lot, PortfolioRow, Split, Trade } from '$lib/types'
 
-function buildLots(buys: Trade[], method: string): Lot[] {
-	const lots = buys.map((b) => ({ quantity: b.quantity, price: b.price, date: b.trade_date }))
-	if (method === 'hifo') lots.sort((a, b) => b.price - a.price)
-	if (method === 'lifo') lots.reverse()
-	return lots
+const EPS = 1e-9
+
+type LotEvent =
+	| { kind: 'split'; date: Date; ratio: number }
+	| { kind: 'trade'; date: Date; trade: Trade }
+
+// Same-day order: splits first (trades on the split date are already post-split), then buys, then sells.
+function eventRank(e: LotEvent): number {
+	if (e.kind === 'split') return 0
+	return e.trade.side === 'BUY' ? 1 : 2
 }
 
-function adjustLotsForSplits(lots: Lot[], splits: Split[], symbol: string): Lot[] {
-	const symbolSplits = splits
-		.filter((s) => s.symbol === symbol)
-		.sort((a, b) => a.date.getTime() - b.date.getTime())
-
-	return lots.map((lot) => {
-		let qty = lot.quantity
-		let price = lot.price
-
-		for (const split of symbolSplits) {
-			if (lot.date < split.date) {
-				qty *= split.ratio
-				price /= split.ratio
-			}
-		}
-
-		return { ...lot, quantity: qty, price }
-	})
+function buildEvents(trades: Trade[], splits: Split[]): LotEvent[] {
+	const events: LotEvent[] = [
+		...splits.map((s): LotEvent => ({ kind: 'split', date: s.date, ratio: s.ratio })),
+		...trades.map((t): LotEvent => ({ kind: 'trade', date: t.trade_date, trade: t }))
+	]
+	return events.sort((a, b) => a.date.getTime() - b.date.getTime() || eventRank(a) - eventRank(b))
 }
 
-function matchSells(sells: Trade[], lots: Lot[], method: string): CGTRow[] {
-	const results: CGTRow[] = []
-	const takeFromEnd = method === 'lifo'
+// Lots are kept in acquisition order; pick the one the method disposes of first.
+function pickLot(lots: Lot[], method: CGTMethod): number {
+	if (method === 'fifo') return 0
+	if (method === 'lifo') return lots.length - 1
+	let best = 0
+	for (let i = 1; i < lots.length; i++) if (lots[i].price > lots[best].price) best = i
+	return best
+}
 
-	for (const sell of sells) {
-		let remaining = sell.quantity
-		let cost_base = 0
+function sellFromLots(sell: Trade, lots: Lot[], method: CGTMethod): CGTRow {
+	let remaining = sell.quantity
+	let cost_base = 0
 
-		while (remaining > 0 && lots.length > 0) {
-			const lot = takeFromEnd ? lots[lots.length - 1] : lots[0]
-
-			if (lot.quantity <= remaining) {
-				cost_base += lot.quantity * lot.price
-				remaining -= lot.quantity
-				takeFromEnd ? lots.pop() : lots.shift()
-			} else {
-				cost_base += remaining * lot.price
-				lot.quantity -= remaining
-				remaining = 0
-			}
-		}
-
-		const proceeds = sell.gross
-
-		results.push({
-			trade_date: sell.trade_date,
-			symbol: sell.symbol,
-			quantity_sold: sell.quantity,
-			proceeds: round(proceeds),
-			cost_base: round(cost_base),
-			realised_pnl: round(proceeds - cost_base)
-		})
+	while (remaining > EPS && lots.length > 0) {
+		const i = pickLot(lots, method)
+		const lot = lots[i]
+		const take = Math.min(lot.quantity, remaining)
+		cost_base += take * lot.price
+		lot.quantity -= take
+		remaining -= take
+		if (lot.quantity <= EPS) lots.splice(i, 1)
 	}
 
-	return results
+	const proceeds = sell.gross
+	return {
+		trade_date: sell.trade_date,
+		symbol: sell.symbol,
+		quantity_sold: sell.quantity,
+		proceeds: round(proceeds),
+		cost_base: round(cost_base),
+		realised_pnl: round(proceeds - cost_base)
+	}
+}
+
+function processSymbol(
+	trades: Trade[],
+	splits: Split[],
+	method: CGTMethod
+): { cgt: CGTRow[]; lots: Lot[] } {
+	const lots: Lot[] = []
+	const cgt: CGTRow[] = []
+
+	for (const e of buildEvents(trades, splits)) {
+		if (e.kind === 'split') {
+			for (const lot of lots) {
+				lot.quantity *= e.ratio
+				lot.price /= e.ratio
+			}
+		} else if (e.trade.side === 'BUY') {
+			lots.push({ quantity: e.trade.quantity, price: e.trade.price, date: e.trade.trade_date })
+		} else {
+			cgt.push(sellFromLots(e.trade, lots, method))
+		}
+	}
+
+	return { cgt, lots }
 }
 
 function aggregatePortfolio(lots: Lot[], symbol: string): PortfolioRow | null {
@@ -83,7 +97,7 @@ function round(n: number): number {
 function calculateCGT(
 	trades: Trade[],
 	splits: Split[],
-	method: string
+	method: CGTMethod
 ): { cgt: CGTRow[]; portfolio: PortfolioRow[] } {
 	const cgt: CGTRow[] = []
 	const portfolio: PortfolioRow[] = []
@@ -91,18 +105,14 @@ function calculateCGT(
 	const symbols = [...new Set(trades.map((t) => t.symbol))]
 
 	for (const symbol of symbols) {
-		const group = trades
-			.filter((t) => t.symbol === symbol)
-			.sort((a, b) => a.trade_date.getTime() - b.trade_date.getTime())
+		const result = processSymbol(
+			trades.filter((t) => t.symbol === symbol),
+			(splits ?? []).filter((s) => s.symbol === symbol),
+			method
+		)
+		cgt.push(...result.cgt)
 
-		const buys = group.filter((t) => t.side === 'BUY')
-		const sells = group.filter((t) => t.side === 'SELL')
-		const lots = buildLots(buys, method)
-		const adjusted = adjustLotsForSplits(lots, splits ?? [], symbol)
-
-		cgt.push(...matchSells(sells, adjusted, method))
-
-		const row = aggregatePortfolio(adjusted, symbol)
+		const row = aggregatePortfolio(result.lots, symbol)
 		if (row) portfolio.push(row)
 	}
 
