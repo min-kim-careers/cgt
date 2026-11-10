@@ -43,7 +43,8 @@ function sellFromLots(sell: Trade, lots: Lot[], method: CGTMethod): CGTRow {
 		if (lot.quantity <= EPS) lots.splice(i, 1)
 	}
 
-	const proceeds = sell.gross
+	// brokerage on disposal reduces capital proceeds
+	const proceeds = sell.gross - sell.brokerage
 	return {
 		trade_date: sell.trade_date,
 		symbol: sell.symbol,
@@ -69,7 +70,10 @@ function processSymbol(
 				lot.price /= e.ratio
 			}
 		} else if (e.trade.side === 'BUY') {
-			lots.push({ quantity: e.trade.quantity, price: e.trade.price, date: e.trade.trade_date })
+			// brokerage on acquisition forms part of the cost base
+			const { quantity, gross, brokerage, price, trade_date } = e.trade
+			const unitCost = quantity > 0 ? (gross + brokerage) / quantity : price
+			lots.push({ quantity, price: unitCost, date: trade_date })
 		} else {
 			cgt.push(sellFromLots(e.trade, lots, method))
 		}
