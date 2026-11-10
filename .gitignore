@@ -1,3 +1,4 @@
 .env*
 !.env.example
 *.key
+web/src/lib/assets/cgt.json
