@@ -2,7 +2,7 @@
 
 Upload your broker trade history and get realised capital gains, cost bases, holdings and dividends, ready for tax time.
 
-Status: **Active**
+![Demo](./assets/demo.gif)
 
 ## Why
 Working out capital gains from broker exports by hand is error-prone. Sells have to be matched to the right buy lots, and stock splits quietly break the cost bases.
