@@ -1,9 +1,9 @@
-export type Side = 'BUY' | 'SELL' | 'DISTRIBUTION'
+export type TradeSide = 'BUY' | 'SELL' | 'DISTRIBUTION'
 
 export interface Trade {
 	trade_date: Date
 	symbol: string
-	side: Side
+	side: TradeSide
 	quantity: number
 	price: number
 	gross: number

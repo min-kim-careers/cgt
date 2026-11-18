@@ -1,5 +1,7 @@
 # CGT Calculator
 
+[![Tests](https://github.com/min-kim-careers/cgt/actions/workflows/test.yml/badge.svg)](https://github.com/min-kim-careers/cgt/actions/workflows/test.yml)
+
 Upload your broker trade history and get realised capital gains, cost bases, holdings and dividends, ready for tax time.
 
 ![Demo](./assets/demo.gif)

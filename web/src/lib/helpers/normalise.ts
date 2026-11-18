@@ -1,4 +1,4 @@
-import type { Side, Trade } from '$lib/types'
+import type { Trade, TradeSide } from '$lib/types'
 import * as XLSX from 'xlsx'
 
 function isValidDate(d: Date) {
@@ -25,7 +25,7 @@ function normaliseSymbol(val: string): string {
 	return s.includes(':') ? s : `${s}:AU`
 }
 
-function normaliseSide(val: string): Side {
+function normaliseSide(val: string): TradeSide {
 	const s = val.trim().toUpperCase()
 	if (s === 'BUY') return 'BUY'
 	if (s === 'SELL') return 'SELL'

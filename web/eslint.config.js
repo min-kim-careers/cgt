@@ -33,7 +33,8 @@ export default defineConfig(
 		files: ['**/*.svelte', '**/*.svelte.ts', '**/*.svelte.js', '**/*.ts'],
 		languageOptions: {
 			parserOptions: {
-				projectService: true,
+				// vitest.config.ts isn't in SvelteKit's generated tsconfig, so lint it standalone
+				projectService: { allowDefaultProject: ['vitest.config.ts'] },
 				extraFileExtensions: ['.svelte'],
 				parser: ts.parser,
 				svelteConfig

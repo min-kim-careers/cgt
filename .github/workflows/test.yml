@@ -1,0 +1,27 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web # the app lives in web/, not the repo root
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.8.0 # same pnpm as local
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: web/.nvmrc # same Node as local
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile # fail if the lockfile is out of date
+      - run: pnpm test
